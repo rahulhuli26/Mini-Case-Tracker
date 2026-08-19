@@ -134,10 +134,10 @@ router.get('/', protect, async (req, res, next) => {
 
 /**
  * POST /api/cases
- * Manager-only. Creates a new case, validates the assigned agent, and
- * records the creation in the case's audit log. Since an agent is required
- * up front, the case starts directly in the `Assigned` status rather than
- * `New`, so the assigned agent can immediately act on it.
+ * Manager-only. Creates a new case (status `New`), validates the assigned
+ * agent, and records the creation in the case's audit log. The case stays
+ * `New` until the Manager explicitly assigns it via the status-transition
+ * route, which moves it to `Assigned`.
  */
 router.post('/', protect, requireRole('Manager'), async (req, res, next) => {
   try {
@@ -151,15 +151,15 @@ router.post('/', protect, requireRole('Manager'), async (req, res, next) => {
     const caseItem = await Case.create({
       ...req.body,
       createdBy: req.user._id,
-      status: 'Assigned'
+      status: 'New'
     });
 
     caseItem.auditLog.push({
       caseId: caseItem._id,
       fromStatus: null,
-      toStatus: 'Assigned',
+      toStatus: 'New',
       changedBy: req.user._id,
-      note: 'Case created and assigned'
+      note: 'Case created'
     });
     await caseItem.save();
 
