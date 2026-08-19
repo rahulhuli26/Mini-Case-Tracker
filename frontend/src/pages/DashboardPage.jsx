@@ -5,6 +5,12 @@ import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import { useAuth } from '../App.jsx';
 
+/**
+ * @file Dashboard page: shows the signed-in user's case counts by status
+ * and a list of the most recently created cases.
+ */
+
+/** MUI Chip color for each case status. */
 const statusColors = {
   New: 'default',
   Assigned: 'info',
@@ -14,6 +20,12 @@ const statusColors = {
   Discrepant: 'error'
 };
 
+/**
+ * Landing page after login: displays per-status case counts and the five
+ * most recent cases visible to the current user.
+ *
+ * @returns {JSX.Element}
+ */
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [cases, setCases] = useState([]);

@@ -44,9 +44,6 @@ export default function LoginPage() {
               <Button type="submit" variant="contained" disabled={loading}>
                 {loading ? 'Signing in...' : 'Log in'}
               </Button>
-              <Typography variant="body2" color="text.secondary">
-                Seeded accounts: manager@caseflow.test / Manager123! and agent@caseflow.test / Agent123!
-              </Typography>
             </Stack>
           </Box>
         </CardContent>

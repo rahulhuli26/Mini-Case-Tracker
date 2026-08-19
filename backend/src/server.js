@@ -11,6 +11,12 @@ import caseRoutes from './routes/caseRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import { seedUsers } from './utils/seed.js';
 
+/**
+ * @file Express application entry point. Configures middleware, mounts the
+ * auth/case/user routers, serves uploaded files statically, connects to
+ * MongoDB, seeds default users, and starts the HTTP server.
+ */
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,12 +37,19 @@ app.use('/api/users', userRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+/** GET /api/health - Basic liveness check for the API. */
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'Case Tracker API is running.' });
 });
 
 app.use(errorHandler);
 
+/**
+ * Connects to the database, seeds default users, and starts listening on
+ * `PORT`. Exits the process if startup fails.
+ *
+ * @returns {Promise<void>}
+ */
 const startServer = async () => {
   try {
     await connectDB();

@@ -1,5 +1,11 @@
 import mongoose from 'mongoose';
 
+/**
+ * @file Mongoose schema/model for a case, its embedded documents (uploaded
+ * files), comments, and status-change audit log entries.
+ */
+
+/** Subdocument schema for a file uploaded against a case. */
 const documentSchema = new mongoose.Schema(
   {
     filename: { type: String, required: true },
@@ -12,6 +18,7 @@ const documentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/** Subdocument schema for a comment left on a case. */
 const commentSchema = new mongoose.Schema(
   {
     body: { type: String, required: true, trim: true },
@@ -20,6 +27,7 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/** Subdocument schema recording a single status change for a case. */
 const auditLogSchema = new mongoose.Schema(
   {
     caseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Case', required: true },
@@ -31,6 +39,11 @@ const auditLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/**
+ * Schema for a case: the core work item tracked by the app, including its
+ * client/subject details, lifecycle status, and embedded documents,
+ * comments, and audit log.
+ */
 const caseSchema = new mongoose.Schema(
   {
     clientName: { type: String, required: true, trim: true },
@@ -52,5 +65,8 @@ const caseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/** @typedef {import('mongoose').Document & {clientName: string, subjectName: string, caseType: string, dueDate: Date, status: string, assignedTo: import('mongoose').Types.ObjectId, createdBy: import('mongoose').Types.ObjectId, managerReview: string, documents: object[], comments: object[], auditLog: object[]}} CaseDocument */
+
+/** Mongoose model for the `cases` collection. */
 const Case = mongoose.model('Case', caseSchema);
 export default Case;

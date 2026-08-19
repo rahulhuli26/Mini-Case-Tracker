@@ -4,6 +4,12 @@ import { BrowserRouter } from 'react-router-dom';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import App from './App.jsx';
 
+/**
+ * @file Frontend entry point. Mounts the React app inside MUI's theme
+ * provider and a browser router.
+ */
+
+/** MUI light theme used across the application. */
 const theme = createTheme({
   palette: {
     mode: 'light',

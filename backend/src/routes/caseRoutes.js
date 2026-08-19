@@ -7,12 +7,20 @@ import Case from '../models/Case.js';
 import User from '../models/User.js';
 import { canTransitionStatus } from '../lib/status.js';
 
+/**
+ * @file Case CRUD, status-transition, comment, and document-upload routes
+ * mounted at `/api/cases`. Agents only ever see/act on cases assigned to
+ * them; Managers can create cases and drive them through assignment and
+ * closure.
+ */
+
 const router = express.Router();
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+/** Multer disk storage config that writes uploads to `uploadDir` with a unique, sanitized filename. */
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
@@ -21,6 +29,7 @@ const storage = multer.diskStorage({
   }
 });
 
+/** Multer upload handler: 10 MB limit, restricted to images/PDF/Word documents. */
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -33,6 +42,15 @@ const upload = multer({
   }
 });
 
+/**
+ * Builds an audit-log entry describing a status change.
+ *
+ * @param {import('../models/Case.js').CaseDocument} caseItem - The case being transitioned (read for its current status).
+ * @param {string} toStatus - The status being transitioned to.
+ * @param {import('mongoose').Types.ObjectId} changedBy - Id of the user making the change.
+ * @param {string} [note=''] - Optional note attached to the change.
+ * @returns {{caseId: import('mongoose').Types.ObjectId, fromStatus: string, toStatus: string, changedBy: import('mongoose').Types.ObjectId, note: string}}
+ */
 const buildStatusEntry = (caseItem, toStatus, changedBy, note = '') => ({
   caseId: caseItem._id,
   fromStatus: caseItem.status,
@@ -41,6 +59,18 @@ const buildStatusEntry = (caseItem, toStatus, changedBy, note = '') => ({
   note
 });
 
+/**
+ * Validates the required fields for creating a case.
+ *
+ * @param {object} body - The request body.
+ * @param {string} body.clientName
+ * @param {string} body.subjectName
+ * @param {string} body.caseType
+ * @param {string} body.dueDate - ISO date string.
+ * @param {string} [body.assignedTo] - Agent user id.
+ * @throws {Error} If a required field is missing, `assignedTo` isn't a string, or `dueDate` doesn't parse.
+ * @returns {void}
+ */
 const validateCasePayload = (body) => {
   const { clientName, subjectName, caseType, dueDate, assignedTo } = body;
   if (!clientName || !subjectName || !caseType || !dueDate) {
@@ -56,6 +86,12 @@ const validateCasePayload = (body) => {
   }
 };
 
+/**
+ * GET /api/cases
+ * Lists cases with pagination, optional status/agent/search filters.
+ * Agents are automatically scoped to only their assigned cases.
+ * Query params: `status`, `agent`, `search`, `page` (default 1), `limit` (default 10).
+ */
 router.get('/', protect, async (req, res, next) => {
   try {
     const { status, agent, search, page = 1, limit = 10 } = req.query;
@@ -96,6 +132,13 @@ router.get('/', protect, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/cases
+ * Manager-only. Creates a new case, validates the assigned agent, and
+ * records the creation in the case's audit log. Since an agent is required
+ * up front, the case starts directly in the `Assigned` status rather than
+ * `New`, so the assigned agent can immediately act on it.
+ */
 router.post('/', protect, requireRole('Manager'), async (req, res, next) => {
   try {
     validateCasePayload(req.body);
@@ -108,15 +151,15 @@ router.post('/', protect, requireRole('Manager'), async (req, res, next) => {
     const caseItem = await Case.create({
       ...req.body,
       createdBy: req.user._id,
-      status: 'New'
+      status: 'Assigned'
     });
 
     caseItem.auditLog.push({
       caseId: caseItem._id,
       fromStatus: null,
-      toStatus: 'New',
+      toStatus: 'Assigned',
       changedBy: req.user._id,
-      note: 'Case created'
+      note: 'Case created and assigned'
     });
     await caseItem.save();
 
@@ -126,6 +169,12 @@ router.post('/', protect, requireRole('Manager'), async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/cases/:id
+ * Fetches a single case with its assignee, creator, comment authors,
+ * audit-log actors, and document uploaders populated. Agents may only
+ * view cases assigned to them.
+ */
 router.get('/:id', protect, async (req, res, next) => {
   try {
     const caseItem = await Case.findById(req.params.id)
@@ -149,6 +198,15 @@ router.get('/:id', protect, async (req, res, next) => {
   }
 });
 
+/**
+ * PATCH /api/cases/:id/status
+ * Transitions a case to a new status, enforcing both the general state
+ * machine ({@link canTransitionStatus}) and role-specific rules: Managers
+ * may only assign a case (supplying `assignedTo`) or close it as `Cleared`/
+ * `Discrepant` (optionally with a `note` saved to `managerReview`); Agents
+ * may only move their own assigned case to `In Progress` or `Submitted`.
+ * Every change is appended to the case's audit log.
+ */
 router.patch('/:id/status', protect, async (req, res, next) => {
   try {
     const { status, note } = req.body;
@@ -209,6 +267,11 @@ router.patch('/:id/status', protect, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/cases/:id/comments
+ * Adds a comment to a case, authored by the requesting user. Agents may
+ * only comment on cases assigned to them.
+ */
 router.post('/:id/comments', protect, async (req, res, next) => {
   try {
     const { body } = req.body;
@@ -234,6 +297,12 @@ router.post('/:id/comments', protect, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/cases/:id/documents
+ * Agent-only. Uploads a single file (field name `file`) and attaches it to
+ * the case the requesting agent is assigned to. Rejects files outside the
+ * allowed types/size (see {@link upload}) or cases not assigned to the agent.
+ */
 router.post('/:id/documents', protect, requireRole('Agent'), upload.single('file'), async (req, res, next) => {
   try {
     const caseItem = await Case.findById(req.params.id);

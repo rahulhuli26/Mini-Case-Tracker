@@ -5,8 +5,20 @@ import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import { useAuth } from '../App.jsx';
 
+/**
+ * @file Case list page: paginated, filterable table of cases, with an
+ * inline case-creation form for Managers.
+ */
+
+/** Status filter options for the list, including the `'All'` wildcard. */
 const statusOptions = ['All', 'New', 'Assigned', 'In Progress', 'Submitted', 'Cleared', 'Discrepant'];
 
+/**
+ * Lists cases with search/status/agent filters and pagination. Managers
+ * additionally see a form to create new cases.
+ *
+ * @returns {JSX.Element}
+ */
 export default function CaseListPage() {
   const { user, logout } = useAuth();
   const [agents, setAgents] = useState([]);
@@ -24,6 +36,7 @@ export default function CaseListPage() {
     assignedTo: ''
   });
 
+  /** Fetches the current page of cases from the API using the active filters. */
   const fetchCases = async () => {
     try {
       const params = new URLSearchParams({ page: String(page), limit: '10' });
@@ -53,10 +66,12 @@ export default function CaseListPage() {
 
   const canCreateCase = user?.role === 'Manager';
 
+  /** Updates a single field of the create-case form by input `name`. */
   const handleFormChange = (event) => {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
 
+  /** Submits the create-case form, then resets it and refreshes the list. */
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {

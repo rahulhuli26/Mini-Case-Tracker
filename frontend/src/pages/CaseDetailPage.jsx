@@ -2,9 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppBar, Box, Button, Card, CardContent, Chip, Container, Divider, FormControl, Grid, IconButton, InputLabel, List, ListItem, ListItemText, MenuItem, Select, Stack, TextField, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { Link, useParams } from 'react-router-dom';
-import api from '../api/client.js';
+import api, { apiOrigin } from '../api/client.js';
 import { useAuth } from '../App.jsx';
 
+/**
+ * @file Case detail page: shows a single case's info, status-transition
+ * actions, comments, documents, and audit-log timeline.
+ */
+
+/** MUI Chip color for each case status. */
 const statusColors = {
   New: 'default',
   Assigned: 'info',
@@ -14,6 +20,14 @@ const statusColors = {
   Discrepant: 'error'
 };
 
+/**
+ * Detail view for a single case, identified by the `:id` route param.
+ * Renders role-appropriate status actions (Manager: assign/clear/mark
+ * discrepant; Agent: start progress/submit), plus comment and document
+ * management and a chronological status timeline.
+ *
+ * @returns {JSX.Element}
+ */
 export default function CaseDetailPage() {
   const { id } = useParams();
   const { user, logout } = useAuth();
@@ -24,6 +38,7 @@ export default function CaseDetailPage() {
   const [agents, setAgents] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState('');
 
+  /** Fetches (or refetches) the case identified by the `:id` route param. */
   const fetchCase = async () => {
     try {
       const { data } = await api.get(`/cases/${id}`);
@@ -50,6 +65,13 @@ export default function CaseDetailPage() {
       .catch(() => setAgents([]));
   }, [user, selectedAgent]);
 
+  /**
+   * Requests a status transition for the case, supplying the assigned
+   * agent when moving to `Assigned`, then refetches the case.
+   *
+   * @param {string} nextStatus - Target status to transition to.
+   * @returns {Promise<void>}
+   */
   const updateStatus = async (nextStatus) => {
     try {
       if (nextStatus === 'Assigned' && !selectedAgent) {
@@ -69,6 +91,7 @@ export default function CaseDetailPage() {
     }
   };
 
+  /** Posts the current comment draft to the case, then clears it and refetches. */
   const addComment = async () => {
     try {
       await api.post(`/cases/${id}/comments`, { body: comment });
@@ -79,6 +102,7 @@ export default function CaseDetailPage() {
     }
   };
 
+  /** Uploads the selected file to the case as a multipart form, then refetches. */
   const uploadDocument = async () => {
     if (!file) return;
 
@@ -94,6 +118,7 @@ export default function CaseDetailPage() {
     }
   };
 
+  /** Audit-log entries sorted oldest-first for the status timeline. */
   const timeline = useMemo(() => [...(caseItem?.auditLog || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)), [caseItem]);
 
   if (!caseItem) return <Typography>Loading...</Typography>;
@@ -192,7 +217,7 @@ export default function CaseDetailPage() {
                   ) : caseItem.documents.map((document) => (
                     <ListItem key={document._id} divider>
                       <ListItemText primary={document.originalName} secondary={`${document.mimetype} • ${document.size} bytes`} />
-                      <Button component="a" href={`http://localhost:5000${document.path}`} target="_blank" rel="noreferrer">Open</Button>
+                      <Button component="a" href={`${apiOrigin}${document.path}`} target="_blank" rel="noreferrer">Open</Button>
                     </ListItem>
                   ))}
                 </List>
