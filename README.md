@@ -2,6 +2,10 @@
 
 A full-stack MERN app for managing client cases with role-based access for Managers and Agents.
 
+## Live demo
+- App: https://mini-case-tracker-nu.vercel.app/
+- Source: https://github.com/rahulhuli26/Mini-Case-Tracker/tree/main
+
 ## Features
 - JWT login with Manager and Agent roles
 - Manager can create and assign cases
@@ -73,6 +77,10 @@ Agent
 - Email: agent@caseflow.test
 - Password: Agent123!
 
+Agent (second seeded account)
+- Email: agent2@caseflow.test
+- Password: Agent123!
+
 ## Core status flow
 New → Assigned → In Progress → Submitted → Cleared / Discrepant
 
@@ -88,4 +96,4 @@ Transitions are validated server-side and each change is logged in the case audi
 Approximately 8-10 hours building the core app, validation, and documentation.
 
 ## Notes
-This version is built for a local development environment and is ready to be deployed to Vercel/Netlify + Render/Railway with MongoDB Atlas for production.
+The frontend is deployed on Vercel and the backend on Render, with MongoDB Atlas for the database. See [Live demo](#live-demo) above.
